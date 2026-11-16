@@ -17,6 +17,7 @@ Uso: cd backend && PYTHONPATH=. uv run python -u scripts/build_city_growth.py [m
 from __future__ import annotations
 
 import base64
+import itertools
 import json
 import sys
 from datetime import date
@@ -43,14 +44,14 @@ CELL_M = 100.0
 BUILT, WATER = 7, 1
 
 CITIES = {
-    "managua": dict(name="Managua, Nicaragua", lat=12.13, lon=-86.25, iso="NIC", half_km=12.0),
+    "managua": {"name": "Managua, Nicaragua", "lat": 12.13, "lon": -86.25, "iso": "NIC", "half_km": 12.0},
 }
 
 
 def grid_for(lat: float, lon: float, half_km: float):
     dlat = CELL_M / 111_320.0
     dlon = CELL_M / (111_320.0 * np.cos(np.radians(lat)))
-    n = int(round(2 * half_km * 1000 / CELL_M))
+    n = round(2 * half_km * 1000 / CELL_M)
     west = lon - dlon * n / 2
     north = lat + dlat * n / 2
     transform = from_origin(west, north, dlon, dlat)
@@ -293,6 +294,7 @@ def read_ghsl_height(n: int, transform):
     """Altura media neta de edificación (m) a 100 m, GHSL GHS-BUILT-H ANBH 2018 (R2023A, Mollweide).
     Devuelve (altura media de lo edificado por celda, 0 donde no hay edificación)."""
     import urllib.request
+
     from rasterio.warp import transform as warp_transform
 
     cx = float(transform.c + transform.a * n / 2)
@@ -410,7 +412,7 @@ def build(city_id: str) -> None:
 
     # ---- modelo final con todas las transiciones
     Xs, ys = [], []
-    for t0, t1 in zip(years[:-1], years[1:]):
+    for t0, t1 in itertools.pairwise(years):
         X, y, _ = transitions(B[t0], B[t1], W, slope)
         Xs.append(X)
         ys.append(y)
@@ -457,7 +459,7 @@ def build(city_id: str) -> None:
         out_area = {BASE_YEAR: area[BASE_YEAR]}
         for k, yr in enumerate(PROJECTION_YEARS, start=1):
             target = target_area(area[BASE_YEAR], U, soc, clim, yr, BASE_YEAR, beta_c, integrated=integrated)
-            need = int(round((target - cur.sum() * new_density_cells) / new_density_cells))
+            need = round((target - cur.sum() * new_density_cells) / new_density_cells)
             if need > 0:
                 sc = score(wf, muf, sdf, features(cur, W, slope))
                 pick = allocate(sc, (~cur) & (~free_water), need)
@@ -536,7 +538,7 @@ def build(city_id: str) -> None:
     dens = np.clip(np.round(built_f[BASE_YEAR] * 100), 0, 100)
     dens[~B[BASE_YEAR]] = 0
     conv = np.concatenate([(built_f[t1] * (B[t1] & ~B[t0])).ravel()[(B[t1] & ~B[t0]).ravel()]
-                           for t0, t1 in zip(years[:-1], years[1:])])
+                           for t0, t1 in itertools.pairwise(years)])
     new_density = float(np.clip(conv.mean() if len(conv) else 0.7, 0.3, 1.0))
 
     payload = {
@@ -544,7 +546,7 @@ def build(city_id: str) -> None:
         "generated": date.today().isoformat(),
         "grid": {"cols": n, "rows": n, "cell_m": CELL_M, "west": w, "south": s, "east": e, "north": nn},
         "base_year": BASE_YEAR, "years": [BASE_YEAR] + PROJECTION_YEARS,
-        "density": b64(dens), "added": b64(added), "added_base": b64(added_base), "water": b64((W >= 0.5)),
+        "density": b64(dens), "added": b64(added), "added_base": b64(added_base), "water": b64(W >= 0.5),
         "height": b64(np.clip(np.round(h0), 0, 255)), "height_new": b64(np.clip(np.round(h_new), 0, 255)),
         "core": b64(np.round(core * 100)), "vertical": vertical,
         "new_cell_density": round(new_density, 2),
