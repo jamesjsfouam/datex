@@ -138,7 +138,7 @@ export function SatelliteView({
       {errors.map((e) => (
         <p key={e} className="error" role="alert">{e}</p>
       ))}
-      {!images && <Loader label={copy.loadingImgs} />}
+      {!images && errors.length === 0 && <Loader label={copy.loadingImgs} />}
       {images && images.length === 0 && <p className="muted">{copy.noImgs}</p>}
 
       {images && img && (
