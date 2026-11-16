@@ -209,7 +209,15 @@ export function RelateView({
             <option value={2}>Lag 2 ({lang === 'es' ? '2 años' : '2 yrs'})</option>
           </select>
         </label>
-        <label className="check-inline" style={{ alignSelf: 'end', paddingBottom: 6 }}>
+        <label
+          className="check-inline"
+          style={{ alignSelf: 'end', paddingBottom: 8 }}
+          title={
+            lang === 'es'
+              ? 'Omite los años 2020–2021 (pandemia) para evitar que distorsionen la correlación'
+              : 'Excludes 2020–2021 (pandemic shock) so it does not skew the correlation'
+          }
+        >
           <input type="checkbox" checked={excludeShock} onChange={(e) => setExcludeShock(e.target.checked)} />
           <span>{copy.shockLabel}</span>
         </label>

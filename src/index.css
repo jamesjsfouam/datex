@@ -527,6 +527,8 @@ tr:last-child td { border-bottom: 0; }
 .controls label { min-width: 180px; }
 .relate-controls { display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items: end; }
 .relate-controls label { margin-bottom: 0; }
+.relate-controls .check-inline { flex-direction: row; align-items: center; gap: 8px; cursor: pointer; font-weight: 500; color: var(--ink); }
+.relate-controls .check-inline input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); flex-shrink: 0; }
 .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
 
 .recharts-cartesian-axis-tick-value { fill: var(--muted); font-size: 12px; }

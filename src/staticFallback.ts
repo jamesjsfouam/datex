@@ -1198,9 +1198,18 @@ export async function staticGet<T>(path: string, signal?: AbortSignal): Promise<
 
     const indMeta = catalog.indicators.find((i) => i.key === indicator)
     if (!indMeta) throw new Error(`Indicador desconocido: ${indicator}`)
+    // Si existe serie del indicador en bundle.relate, se reutiliza al aplicar lag o excluir 2020-2021
+    let bundledWb: Record<number, number> | null = null
+    for (const [k, relEntry] of Object.entries(bundle.relate)) {
+      const parts = k.split('|')
+      if (parts[1] === indicator && parts[2] === country && relEntry.relation?.points?.length) {
+        bundledWb = Object.fromEntries(relEntry.relation.points.map((p) => [p.year, p.indicator]))
+        break
+      }
+    }
     const [tr, wbSeries] = await Promise.all([
       resolveTrend(variable, lat, lon, start, catalog, bundle, signal),
-      fetchWorldBankSeries(country, indicator, signal),
+      bundledWb ? Promise.resolve(bundledWb) : fetchWorldBankSeries(country, indicator, signal),
     ])
     const rel = buildRelation(tr.result, indMeta, wbSeries, lag, excludeShock)
     const { indicator_trend, ...relation } = rel
