@@ -1220,11 +1220,17 @@ export async function staticGet<T>(path: string, signal?: AbortSignal): Promise<
     const lat = Number(q.get('lat') ?? 0)
     const lon = Number(q.get('lon') ?? 0)
     const targets = [1990, 2000, 2010, 2016, 2020, 2025]
-    const d = 0.08
-    const bbox = [lon - d, lat - d, lon + d, lat + d]
+    const halfKm = 8.0
+    const dlat = halfKm / 111.0
+    const dlon = halfKm / (111.0 * Math.max(0.1, Math.cos((lat * Math.PI) / 180)))
+    const [w, s, e, n] = [lon - dlon, lat - dlat, lon + dlon, lat + dlat]
     const items = await Promise.all(
       targets.map(async (yr): Promise<SatelliteImage | null> => {
         const col = yr >= 2016 ? 'sentinel-2-l2a' : 'landsat-c2-l2'
+        const query: Record<string, unknown> = { 'eo:cloud_cover': { lt: 35 } }
+        if (yr < 2016) {
+          query.platform = yr <= 2002 ? { in: ['landsat-5', 'landsat-7'] } : yr <= 2011 ? { in: ['landsat-5'] } : { in: ['landsat-8', 'landsat-9'] }
+        }
         try {
           const res = await fetch('https://planetarycomputer.microsoft.com/api/stac/v1/search', {
             method: 'POST',
@@ -1232,31 +1238,38 @@ export async function staticGet<T>(path: string, signal?: AbortSignal): Promise<
             signal,
             body: JSON.stringify({
               collections: [col],
-              bbox,
+              intersects: { type: 'Point', coordinates: [lon, lat] },
               datetime: `${yr}-01-01T00:00:00Z/${yr}-12-31T23:59:59Z`,
               limit: 8,
-              query: { 'eo:cloud_cover': { lt: 35 } },
+              query,
             }),
           })
           if (!res.ok) return null
           const data = (await res.json()) as {
             features?: Array<{
               id: string
-              properties: { datetime: string; 'eo:cloud_cover'?: number }
-              assets?: { rendered_preview?: { href: string } }
+              properties: { datetime: string; platform?: string; 'eo:cloud_cover'?: number }
             }>
           }
           const feat = (data.features ?? [])
-            .filter((f) => Boolean(f.assets?.rendered_preview?.href))
             .sort((a, b) => (a.properties['eo:cloud_cover'] ?? 100) - (b.properties['eo:cloud_cover'] ?? 100))[0]
           if (!feat) return null
+          const qs = new URLSearchParams({ collection: col, item: feat.id })
+          if (col === 'sentinel-2-l2a') {
+            qs.append('assets', 'visual')
+          } else {
+            qs.append('assets', 'red')
+            qs.append('assets', 'green')
+            qs.append('assets', 'blue')
+            qs.append('rescale', '7500,14000')
+          }
           return {
-            year: Number(feat.properties.datetime.slice(0, 4)),
+            year: yr,
             date: feat.properties.datetime.slice(0, 10),
             collection: col,
-            platform: col === 'sentinel-2-l2a' ? 'Sentinel-2' : 'Landsat',
+            platform: feat.properties.platform ?? (col === 'sentinel-2-l2a' ? 'Sentinel-2' : 'Landsat'),
             cloud_cover: feat.properties['eo:cloud_cover'] ?? 0,
-            url: feat.assets!.rendered_preview!.href,
+            url: `https://planetarycomputer.microsoft.com/api/data/v1/item/bbox/${w},${s},${e},${n}/640x640.png?${qs.toString()}`,
           }
         } catch {
           return null
