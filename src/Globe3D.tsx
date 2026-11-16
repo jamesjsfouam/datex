@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import type { GeoJSONSource, MapLayerMouseEvent, MapMouseEvent, StyleSpecification } from 'maplibre-gl'
+import maplibreglWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import 'maplibre-gl/dist/maplibre-gl.css'
+
+maplibregl.setWorkerUrl(maplibreglWorkerUrl)
 import { cellColor } from './globeColors'
 import { fmtNum, shortVarName, tUnit, type Lang } from './i18n'
 
@@ -253,9 +256,10 @@ export function Globe3D({
         type: 'line',
         source: 'cells',
         paint: {
-          'line-color': 'rgba(255,255,255,0.08)',
-          'line-width': 0.5,
-          'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.4, 5.5, 0.7, 9, 0.3],
+          'line-color': 'rgba(255,255,255,0.18)',
+          'line-width': 0.7,
+          'line-dasharray': [2, 2],
+          'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.45, 5.5, 0.75, 9, 0.35],
         },
       })
       map.addLayer({

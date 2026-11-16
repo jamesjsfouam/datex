@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import type { FilterSpecification, GeoJSONSourceSpecification, StyleSpecification } from 'maplibre-gl'
+import maplibreglWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import 'maplibre-gl/dist/maplibre-gl.css'
+
+maplibregl.setWorkerUrl(maplibreglWorkerUrl)
 import { loadCity, type CityIndexEntry, type CityPayload, type DriverRow } from './cities'
 import { DataTable, type Column } from './DataTable'
 import { CITY, fmtNum, verdictLabel, type Lang } from './i18n'
