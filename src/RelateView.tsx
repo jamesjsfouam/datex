@@ -42,6 +42,8 @@ export function RelateView({
   const [data, setData] = useState<RelateResponse | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [availableKeys, setAvailableKeys] = useState<string[] | null>(null)
+  const [checkingInds, setCheckingInds] = useState(false)
 
   async function run(ind = indicator, cc = country, l = lag, ex = excludeShock) {
     setBusy(true)
@@ -67,6 +69,37 @@ export function RelateView({
     run()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Filtra indicadores sin datos suficientes en el Banco Mundial para el país elegido
+  useEffect(() => {
+    let alive = true
+    setCheckingInds(true)
+    api<{ country: string; indicators: string[] }>(
+      `/api/worldbank/available?country=${encodeURIComponent(country)}&start=${query.start}`,
+    )
+      .then((res) => {
+        if (!alive) return
+        setAvailableKeys(res.indicators)
+        if (res.indicators.length > 0 && !res.indicators.includes(indicator)) {
+          setIndicator(res.indicators[0])
+        }
+      })
+      .catch(() => {
+        if (alive) setAvailableKeys(null)
+      })
+      .finally(() => {
+        if (alive) setCheckingInds(false)
+      })
+    return () => {
+      alive = false
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [country, query.start])
+
+  const visibleIndicators = availableKeys
+    ? cat.indicators.filter((i) => availableKeys.includes(i.key))
+    : cat.indicators
+  const noIndicators = availableKeys !== null && availableKeys.length === 0
 
   const rawVar = cat.variables.find((v) => v.key === query.variable)
   const variable = rawVar ? tVariable(rawVar, lang) : undefined
@@ -149,11 +182,15 @@ export function RelateView({
       <div className="relate-controls">
         <label>
           {copy.indLabel}
-          <select value={indicator} onChange={(e) => setIndicator(e.target.value)}>
-            {cat.indicators.map((raw) => {
-              const i = tIndicator(raw, lang)
-              return <option key={i.key} value={i.key}>{i.label} ({i.unit})</option>
-            })}
+          <select value={indicator} onChange={(e) => setIndicator(e.target.value)} disabled={checkingInds || noIndicators}>
+            {visibleIndicators.length === 0 ? (
+              <option value="">{lang === 'es' ? 'Sin indicadores disponibles' : 'No indicators available'}</option>
+            ) : (
+              visibleIndicators.map((raw) => {
+                const i = tIndicator(raw, lang)
+                return <option key={i.key} value={i.key}>{i.label} ({i.unit})</option>
+              })
+            )}
           </select>
         </label>
         <label>
@@ -176,10 +213,18 @@ export function RelateView({
           <input type="checkbox" checked={excludeShock} onChange={(e) => setExcludeShock(e.target.checked)} />
           <span>{copy.shockLabel}</span>
         </label>
-        <Button onClick={() => run()} disabled={busy}>
+        <Button onClick={() => run()} disabled={busy || checkingInds || noIndicators}>
           {busy ? copy.busyBtn : copy.btn}
         </Button>
       </div>
+
+      {noIndicators && (
+        <p className="definition">
+          {lang === 'es'
+            ? 'El Banco Mundial no tiene series suficientes para este país en el periodo elegido.'
+            : 'World Bank has insufficient series for this country in the selected period.'}
+        </p>
+      )}
 
       {current && <p className="definition">{current.definition}</p>}
       {busy && <Loader label={copy.loading} />}

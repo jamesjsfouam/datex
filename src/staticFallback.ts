@@ -1103,6 +1103,34 @@ export async function staticGet<T>(path: string, signal?: AbortSignal): Promise<
     return demoResp as T
   }
 
+  if (pathname === '/api/worldbank/available') {
+    const country = (q.get('country') ?? 'NIC').toUpperCase()
+    const start = Number(q.get('start') ?? bundle.generated_start)
+    if (start === bundle.generated_start) {
+      const fromBundle = new Set<string>()
+      for (const [k, rel] of Object.entries(bundle.relate)) {
+        const parts = k.split('|')
+        if (parts[2] === country && (rel.relation?.points?.length ?? 0) >= 10) {
+          fromBundle.add(parts[1])
+        }
+      }
+      if (fromBundle.size > 0) {
+        return { country, indicators: catalog.indicators.map((i) => i.key).filter((k) => fromBundle.has(k)) } as T
+      }
+    }
+    const checks = await Promise.allSettled(
+      catalog.indicators.map(async (ind) => {
+        const s = await fetchWorldBankSeries(country, ind.key, signal)
+        const count = Object.keys(s).filter((y) => Number(y) >= start).length
+        return count >= 10 ? ind.key : null
+      }),
+    )
+    const indicators = checks
+      .filter((r): r is PromiseFulfilledResult<string | null> => r.status === 'fulfilled' && r.value !== null)
+      .map((r) => r.value as string)
+    return { country, indicators } as T
+  }
+
   if (pathname === '/api/relate') {
     const variable = q.get('variable') ?? 'T2M'
     const indicator = q.get('indicator') ?? 'AG.YLD.CREL.KG'

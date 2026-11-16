@@ -268,6 +268,16 @@ async def relate_endpoint(
     )
 
 
+@app.get("/api/worldbank/available")
+async def worldbank_available(country: str, start: int = 1990) -> dict[str, object]:
+    """Lista de indicadores del Banco Mundial con datos suficientes para el país elegido."""
+    code = country.upper()
+    if places.country_name(code) is None:
+        raise HTTPException(404, f"País desconocido: {code}")
+    keys = await worldbank.available_indicators(code, start=start, min_years=relate.MIN_OVERLAP)
+    return {"country": code, "indicators": keys}
+
+
 @app.get("/api/regions/{region_id}")
 def region(region_id: str) -> Region:
     if region_id not in REGION_BY_ID:

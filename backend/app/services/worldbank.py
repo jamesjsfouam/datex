@@ -5,6 +5,7 @@ países de las regiones de ejemplo, muestras guardadas en app/data/samples/world
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from collections import OrderedDict
@@ -88,3 +89,17 @@ async def fetch_all(country: str) -> dict[str, dict[int, float]]:
                 if attempt == 1:
                     raise
     return out
+
+
+async def available_indicators(country: str, start: int = 1990, min_years: int = 10) -> list[str]:
+    """Devuelve las claves de indicadores con al menos `min_years` datos desde `start`."""
+    async def _check(key: str) -> str | None:
+        try:
+            raw, _ = await get_indicator(country, key)
+        except WorldBankUnavailable:
+            return None
+        count = sum(1 for y in raw if y >= start)
+        return key if count >= min_years else None
+
+    results = await asyncio.gather(*(_check(ind.key) for ind in INDICATORS))
+    return [k for k in results if k is not None]

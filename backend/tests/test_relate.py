@@ -80,3 +80,19 @@ def test_lag_and_exclude_2020_2021():
     assert r.excluded_years == [2020, 2021]
     assert "Managua" in r.spatial_note and "Nicaragua" in r.spatial_note
     assert r.significant and r.detrended_r > 0.9
+
+
+@pytest.mark.asyncio
+async def test_available_indicators_filters_empty_and_short(monkeypatch):
+    from app.services import worldbank
+
+    async def fake_get_indicator(country: str, key: str):
+        if key == "AG.YLD.CREL.KG":
+            return {y: float(y) for y in range(1995, 2020)}, "muestra-local"
+        if key == "NY.GDP.PCAP.KD":
+            return {y: float(y) for y in range(2018, 2023)}, "muestra-local"  # menos de 10 años
+        raise worldbank.WorldBankUnavailable("sin datos")
+
+    monkeypatch.setattr(worldbank, "get_indicator", fake_get_indicator)
+    avail = await worldbank.available_indicators("NIC", start=1990, min_years=10)
+    assert avail == ["AG.YLD.CREL.KG"]
