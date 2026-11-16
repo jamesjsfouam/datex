@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import maplibregl, { type FilterSpecification, type GeoJSONSourceSpecification, type StyleSpecification } from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
+import type { FilterSpecification, GeoJSONSourceSpecification, StyleSpecification } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { loadCity, type CityIndexEntry, type CityPayload, type DriverRow } from './cities'
 import { DataTable, type Column } from './DataTable'

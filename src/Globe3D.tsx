@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
-import maplibregl, { type GeoJSONSource, type StyleSpecification } from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
+import type { GeoJSONSource, MapLayerMouseEvent, MapMouseEvent, StyleSpecification } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { cellColor } from './globeColors'
 import { fmtNum, shortVarName, tUnit, type Lang } from './i18n'
@@ -215,7 +216,7 @@ export function Globe3D({
     const spin = () => {
       if (interacting || !live.current.spinEnabled || map.getZoom() > 2.6) return
       const c = map.getCenter()
-      map.easeTo({ center: [c.lng - 3.2, c.lat], duration: 1000, easing: (t) => t })
+      map.easeTo({ center: [c.lng - 3.2, c.lat], duration: 1000, easing: (t: number) => t })
     }
     const stop = () => {
       interacting = true
@@ -310,7 +311,7 @@ export function Globe3D({
       spin()
     })
 
-    map.on('mousemove', 'cells', (e) => {
+    map.on('mousemove', 'cells', (e: MapLayerMouseEvent) => {
       const f = e.features?.[0]
       if (!f) return
       map.getCanvas().style.cursor = 'pointer'
@@ -346,7 +347,7 @@ export function Globe3D({
       popup.remove()
     })
 
-    map.on('click', (e) => {
+    map.on('click', (e: MapMouseEvent) => {
       const z = map.getZoom()
       if (z < 3.6) {
         const hit = map.queryRenderedFeatures(e.point, { layers: ['cells'] })[0]
