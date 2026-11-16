@@ -302,9 +302,9 @@ export default function App() {
 
       <header className="topbar">
         <div className="topbar-inner">
-          <button type="button" className="brand-btn" onClick={() => switchPhase('briefing')}>
-            <img className="brand-mark" src="./logo.png" alt="" />
-            <span className="brand-logo">DATEX</span>
+          <button type="button" className="brand-btn" onClick={() => switchPhase('briefing')} aria-label="DATEX">
+            <img className="brand-mark" src="./logo.png" alt="D" />
+            <span className="brand-logo" aria-hidden="true">ATEX</span>
           </button>
 
           <nav className="phase-nav" aria-label="Phases">

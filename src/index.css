@@ -87,15 +87,15 @@ code { font-family: var(--mono); font-size: 0.9em; }
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 2px;
   color: var(--ink);
   font: inherit;
   transition: opacity 0.2s, transform 0.1s ease-out;
 }
 .brand-btn:hover { opacity: 0.75; }
 .brand-btn:active { transform: scale(0.97); }
-.brand-mark { display: block; height: 28px; width: auto; }
-.brand-logo { font-size: 1.3125rem; font-weight: 900; letter-spacing: -0.03em; }
+.brand-mark { display: block; height: 22px; width: auto; }
+.brand-logo { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.02em; line-height: 1; }
 
 .phase-nav, .segmented, .tabs { display: inline-flex; gap: 2px; padding: 3px; background: var(--fill); border-radius: 999px; }
 
