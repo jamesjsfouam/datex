@@ -505,12 +505,55 @@ function computeTrendFromPowerDict(
   return analyzeAnnualTrend(variable.key, variable.label, variable.unit, variable.ratio_scale, annual, monthly)
 }
 
-async function fetchPowerParams(lat: number, lon: number, paramKeys: string[], signal?: AbortSignal): Promise<Record<string, Record<string, number>>> {
-  const missing: string[] = []
-  const ck = coordKey(lat, lon)
-  for (const k of paramKeys) {
-    if (!powerCache.has(`${k}|${ck}`)) missing.push(k)
+const DERIVED_DEPS: Record<string, string[]> = {
+  DTR: ['T2M_MAX', 'T2M_MIN'],
+  VPD: ['T2M', 'RH2M'],
+  WBGT: ['T2M', 'RH2M'],
+}
+
+function derivePowerParams(ck: string) {
+  const t2m = powerCache.get(`T2M|${ck}`)
+  const tmax = powerCache.get(`T2M_MAX|${ck}`)
+  const tmin = powerCache.get(`T2M_MIN|${ck}`)
+  const rh = powerCache.get(`RH2M|${ck}`)
+
+  if (tmax && tmin && !powerCache.has(`DTR|${ck}`)) {
+    const dtr: Record<string, number> = {}
+    for (const k of Object.keys(tmax)) {
+      if (tmin[k] !== undefined) dtr[k] = Number((tmax[k] - tmin[k]).toFixed(4))
+    }
+    if (Object.keys(dtr).length) powerCache.set(`DTR|${ck}`, dtr)
   }
+
+  if (t2m && rh && (!powerCache.has(`VPD|${ck}`) || !powerCache.has(`WBGT|${ck}`))) {
+    const vpd: Record<string, number> = {}
+    const wbgt: Record<string, number> = {}
+    for (const k of Object.keys(t2m)) {
+      if (rh[k] === undefined) continue
+      const t = t2m[k]
+      const esKpa = 0.6108 * Math.exp((17.27 * t) / (t + 237.3))
+      const eaKpa = (esKpa * Math.max(0, Math.min(100, rh[k]))) / 100
+      vpd[k] = Number(Math.max(0, esKpa - eaKpa).toFixed(4))
+      wbgt[k] = Number((0.567 * t + 0.393 * (eaKpa * 10) + 3.94).toFixed(4))
+    }
+    if (Object.keys(vpd).length) powerCache.set(`VPD|${ck}`, vpd)
+    if (Object.keys(wbgt).length) powerCache.set(`WBGT|${ck}`, wbgt)
+  }
+}
+
+async function fetchPowerParams(lat: number, lon: number, paramKeys: string[], signal?: AbortSignal): Promise<Record<string, Record<string, number>>> {
+  const ck = coordKey(lat, lon)
+  const neededBase = new Set<string>()
+  for (const k of paramKeys) {
+    if (DERIVED_DEPS[k]) {
+      if (!powerCache.has(`${k}|${ck}`)) {
+        for (const dep of DERIVED_DEPS[k]) neededBase.add(dep)
+      }
+    } else {
+      neededBase.add(k)
+    }
+  }
+  const missing = [...neededBase].filter((k) => !powerCache.has(`${k}|${ck}`))
   if (missing.length > 0) {
     const url =
       `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=${encodeURIComponent(missing.join(','))}` +
@@ -523,6 +566,7 @@ async function fetchPowerParams(lat: number, lon: number, paramKeys: string[], s
       if (params[k]) powerCache.set(`${k}|${ck}`, params[k])
     }
   }
+  derivePowerParams(ck)
   const out: Record<string, Record<string, number>> = {}
   for (const k of paramKeys) {
     const cached = powerCache.get(`${k}|${ck}`)
